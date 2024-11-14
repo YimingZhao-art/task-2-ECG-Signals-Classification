@@ -161,3 +161,4 @@ xgboost==2.1.1
 zipp @ file:///home/conda/feedstock_root/build_artifacts/zipp_1726248574750/work
 tslearn
 pyhrv
+imbalance-learn
