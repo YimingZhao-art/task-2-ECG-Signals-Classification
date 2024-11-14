@@ -2,14 +2,14 @@ import os
 import sys
 import pandas as pd
 import numpy as np
-from sklearn.impute import SimpleImputer, KNNImputer
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from sklearn.metrics import f1_score
 import lightgbm as lgb
+
+from typing import List, Tuple, Dict, Any
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(current_dir)
@@ -103,76 +103,78 @@ def handleImbalance(
 
     return X_train, y_train
 
+
 @time_wrapper
-def processData(
-    X_train: pd.DataFrame,
-    X_test: pd.DataFrame,
-    y_train: pd.DataFrame,
-    imputer: object = SimpleImputer(strategy="mean"),
-    scaler: object = StandardScaler(),
-    save: bool = False,
-    imbalance: bool = False,
-    imbalance_method: str = "over",
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """processData
+def processWithStrategy(
+    warmstart: bool = True, save: bool = False
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    if warmstart:
+        # directly read the processed data in the final folder
+        print("Reading the processed data from the final folder", final_data_folder)
+        X_train = pd.read_csv(
+            os.path.join(final_data_folder, "X_train.csv"), index_col=0
+        )
+        X_test = pd.read_csv(os.path.join(final_data_folder, "X_test.csv"), index_col=0)
+        y_train = pd.read_csv(
+            os.path.join(final_data_folder, "y_train.csv"), index_col=0
+        )
+        return X_train, y_train, X_test
 
-    Args:
-        X_train (pd.DataFrame): The training data
-        X_test (pd.DataFrame): The testing data
-        y_train (pd.DataFrame): The training labels
-        imputer (object, optional): The imputer object. Defaults to SimpleImputer(strategy='mean').
-        scaler (object, optional): The scaler object. Defaults to StandardScaler().
-        save (bool, optional): Whether to save the processed data. Defaults to False
+    strategy = elicitStrategy()
+    if not strategy:
+        print("Exiting the process.")
+        exit(0)
 
-    Returns:
-        Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: The transformed training and testing data and labels
-    """
-    # Impute missing values
-    X_train, X_test = imputeOrScale(imputer, X_train, X_test, use_all=True)
-
-    # Scale the data
-    X_train, X_test = imputeOrScale(scaler, X_train, X_test)
-
-    # Handle imbalance
-    X_train, y_train = handleImbalance(
-        X_train=X_train, y_train=y_train, skip=not imbalance, method=imbalance_method
-    )
-
-    if save:
-        X_train.to_csv(os.path.join(final_data_folder, "X_train.csv"), index=False)
-        X_test.to_csv(os.path.join(final_data_folder, "X_test.csv"), index=False)
-        y_train.to_csv(os.path.join(final_data_folder, "y_train.csv"), index=False)
-
-    print_boundary("Data Processing Complete")
-    print("X_train shape:", X_train.shape)
-    print("X_test shape:", X_test.shape)
-    print("y_train shape:", y_train.shape)
-    print_boundary("")
-    return X_train, X_test, y_train
-
-
-def main():
+    print_boundary("Data Processing Started")
     # Load the data
-    X_train_features = pd.read_csv(
+    X_train = pd.read_csv(
         os.path.join(data_folder, "features/X_train_features.csv"), index_col=0
     )
-    X_test_features = pd.read_csv(
+    X_test = pd.read_csv(
         os.path.join(data_folder, "features/X_test_features.csv"), index_col=0
     )
     y_train = pd.read_csv(os.path.join(data_folder, "Input/y_train.csv"), index_col=0)
 
     # Process the data
-    X_train, X_test, y_train = processData(
-        X_train_features,
-        X_test_features,
-        y_train,
-        save=True,
-        scaler=StandardScaler(),
-        imputer=SimpleImputer(strategy="mean"),
-        imbalance=False,
-        imbalance_method="over",
+    X_train, X_test = imputeOrScale(
+        strategy["impute"]["processor"],
+        X_train,
+        X_test,
+        strategy["impute"]["use_all"],
     )
-    
+
+    X_train, X_test = imputeOrScale(
+        strategy["scale"]["processor"],
+        X_train,
+        X_test,
+        strategy["scale"]["use_all"],
+    )
+
+    X_train, y_train = handleImbalance(
+        X_train,
+        y_train,
+        strategy["imbalance"]["skip"],
+        strategy["imbalance"]["method"],
+        strategy["imbalance"]["target_ratio_dict"],
+    )
+
+    if save:
+        print("Saving the processed data to the final folder", final_data_folder)
+        X_train.to_csv(os.path.join(final_data_folder, "X_train.csv"))
+        X_test.to_csv(os.path.join(final_data_folder, "X_test.csv"))
+        y_train.to_csv(os.path.join(final_data_folder, "y_train.csv"))
+
+    print("Shape of X_train:", X_train.shape)
+    print("Shape of X_test:", X_test.shape)
+    print("Shape of y_train:", y_train.shape)
+    print_boundary("Data Processing Completed")
+
+    return X_train, y_train, X_test
+
+
+def main():
+    X_train, y_train, X_test = processWithStrategy(save=True)
+
     # split while keep the imbalance ratio
     X_tr, X_val, y_tr, y_val = train_test_split(
         X_train,
@@ -186,16 +188,16 @@ def main():
     # use multi_logloss as objective
 
     lgb_params = {
-        'objective': 'multiclass',
-        'num_class': 4,
-        'metric': 'multi_logloss',
-        'boosting_type': 'gbdt',
-        'learning_rate': 0.05,
-        'max_depth': 7,
-        'n_estimators': 1000,
-        'n_jobs': -1,
-        'seed': 42,
-        'early_stopping_rounds': 100,
+        "objective": "multiclass",
+        "num_class": 4,
+        "metric": "multi_logloss",
+        "boosting_type": "gbdt",
+        "learning_rate": 0.05,
+        "max_depth": 7,
+        "n_estimators": 1000,
+        "n_jobs": -1,
+        "seed": 42,
+        "early_stopping_rounds": 100,
     }
 
     lgbm = lgb.LGBMClassifier(**lgb_params)
@@ -204,6 +206,7 @@ def main():
 
     y_pred = lgbm.predict(X_val)
     print(f"F1 Score: {f1_score(y_val, y_pred, average='weighted')}")
+
 
 if __name__ == "__main__":
     main()
