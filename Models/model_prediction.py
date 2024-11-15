@@ -55,15 +55,29 @@ from FeaturePreprocessing.process import *
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
 models = {
-    # "GaussianProcess": GaussianProcessClassifier(kernel=RBF(), n_jobs=-1),
-    "LGBM": LGBMClassifier(n_jobs=-1, verbose=-1),
-    "XGB": XGBClassifier(n_jobs=-1),
+    "GaussianProcess": GaussianProcessClassifier(kernel=RBF(), n_jobs=-1),
+    "LGBM": LGBMClassifier(
+        n_jobs=-1,
+        verbose=-1,
+        max_depth=5,
+        learning_rate=0.07,
+        n_estimators=1000,
+        subsample=0.9,
+    ),
+    "XGB": XGBClassifier(
+        n_jobs=-1,
+        n_estimators=800,
+        learning_rate=0.03,
+        verbosity=0,
+        min_child_weight=5,
+        max_depth=7,
+    ),
     "CatBoost": CatBoostClassifier(verbose=0),
     "GradientBoosting": GradientBoostingClassifier(verbose=0),  # too slow
     "AdaBoost": AdaBoostClassifier(),
     "ExtraTrees": ExtraTreesClassifier(),
     "Bagging": BaggingClassifier(),
-    "RandomForest": RandomForestClassifier(),
+    "RandomForest": RandomForestClassifier(random_state=0, n_jobs=-1),
     "LogisticRegression": LogisticRegression(),
     "Ridge": RidgeClassifier(),
     "SGD": SGDClassifier(),
@@ -71,7 +85,7 @@ models = {
     "SVC": SVC(),
     "DecisionTree": DecisionTreeClassifier(),
     "KNeighbors": KNeighborsClassifier(),
-    # "GaussianNB": GaussianNB(),
+    "GaussianNB": GaussianNB(),
     "MLP": MLPClassifier(),
 }
 
@@ -120,13 +134,38 @@ def try_models(
 def main():
     X_train, X_test, y_train = load_final_data()
 
-    assert (
-        X_test.shape[0] == 3411 and X_train.shape[1] == X_test.shape[1]
-    ), "Data shape error"
-
     y_train = y_train.values.ravel()
 
-    try_models(X_train, y_train, X_test, y_train, models)
+    with open(os.path.join(current_dir, "selected_models.txt"), "r") as f:
+        scores = f.read()
+        scores = [score.split("|") for score in scores.split("\n") if score != ""]
+        scores = {
+            score[0]: float(score[1]) for score in scores if float(score[1]) > 0.86
+        }
+
+    print("Scores: ", scores)
+    s = [scores[name] for name in scores.keys()]
+    weights = calculate_weights(s)
+    print("Weights: ", weights)
+
+    # 确保 estimators 和 weights 的模型名称一致
+    estimators = [(name, models[name]) for name in scores.keys()]
+    voting = VotingClassifier(estimators=estimators, voting="soft", weights=weights)
+
+    print("Train the model...", estimators)
+
+    @time_wrapper
+    def train(model):
+        # train on the whole dataset
+        model.fit(X_train, y_train)
+        return model
+
+    voting = train(voting)
+    # predict on the test set
+    y_pred = voting.predict(X_test)
+    submit_pred(y_pred, "finetune_softvote.csv")
+
+    print("Trying models...")
 
 
 if __name__ == "__main__":

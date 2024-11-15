@@ -3,3 +3,4 @@ Data/Input/test.csv
 Data/features/*
 Data/final/*
 catboost_info/*
+Models/catboost*

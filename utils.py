@@ -10,6 +10,9 @@ from sklearn.model_selection import cross_val_score
 from typing import Any
 from sklearn.impute import SimpleImputer, KNNImputer
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import make_scorer
+from sklearn.metrics import f1_score
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 datadir = os.path.join(currentdir, "Data")
@@ -80,6 +83,28 @@ def load_Xtrain_ytrain_Xtest() -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     X_test = test
 
     return X_train, y_train, X_test
+
+
+def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
+    """
+    Load final data.
+
+    Returns:
+    Tuple of three DataFrames: X_train, X_test, and y_train.
+    """
+    X_train = pd.read_csv(datadir + "/final/final_X_train.csv", header=None).iloc[
+        1:, 1:
+    ]
+    X_test = pd.read_csv(datadir + "/final/final_X_test.csv", header=None).iloc[1:, 1:]
+    y_train = pd.read_csv(datadir + "/final/final_y_train.csv", header=None).iloc[
+        1:, 1:
+    ]
+
+    assert (
+        X_test.shape[0] == 3411 and X_train.shape[1] == X_test.shape[1]
+    ), "Data shape error"
+
+    return X_train, X_test, y_train
 
 
 # ================== Feature Preprocessing ==================
@@ -195,12 +220,12 @@ def elicitStrategy() -> Dict[str, Any]:
 # ================== Model Tuning ==================
 
 
-def get_best_parameters(X_train, y_train, estimator, parameters, verbose=0):
+def get_best_parameters(X_train, y_train, estimator, parameters, verbose=0, cv=True):
 
     best_parameters = {}
     best_score = 0
     best_estimator = None
-
+    scores = []
     i = 0
 
     if verbose == 1:
@@ -210,19 +235,39 @@ def get_best_parameters(X_train, y_train, estimator, parameters, verbose=0):
         list(product(*parameters.values())), desc="Searching the best parameters"
     ):
         estimator.set_params(**dict(zip(parameters.keys(), p)))
-        # use f1 score for classification
-        from sklearn.metrics import make_scorer
-        from sklearn.metrics import f1_score
 
-        score = cross_val_score(
-            estimator,
-            X_train,
-            y_train,
-            cv=5,
-            scoring=make_scorer(f1_score, average="weighted"),
-        )
+        if cv:
+            score = cross_val_score(
+                estimator,
+                X_train,
+                y_train,
+                cv=5,
+                scoring=make_scorer(f1_score, average="micro"),
+            )
+        else:
+            X_tr, X_val, y_tr, y_val = train_test_split(
+                X_train, y_train, test_size=0.2, random_state=42, stratify=y_train
+            )
+            estimator.fit(X_tr, y_tr)
+            y_pred = estimator.predict(X_val)
+            score = f1_score(y_val, y_pred, average="micro")
+            
 
-        if verbose == 2:
+        if verbose == 1:
+            # print every 20 iterations
+            if i % 20 == 0:
+                print(
+                    "No:",
+                    i,
+                    "params:",
+                    p,
+                    "score:",
+                    np.round(score.mean(), 4),
+                    "best:",
+                    np.round(best_score, 4),
+                )
+
+        elif verbose == 2:
             print(
                 "No:",
                 i,
@@ -266,3 +311,9 @@ def submit_pred(y_pred: np.ndarray, filename: str = "submission.csv") -> None:
     submission.to_csv(os.path.join(datadir, "Output", filename), index=False)
 
     return None
+
+def calculate_weights(scores, base=3.0, delta=0.02):
+        min_score = min(scores)
+        weights = np.array([base ** ((s - min_score) / delta) for s in scores])
+        weights /= np.sum(weights)
+        return weights
