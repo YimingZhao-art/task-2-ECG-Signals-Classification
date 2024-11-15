@@ -17,7 +17,7 @@ save_dir = os.path.join(current_dir, "../Data/features/")
 os.makedirs(save_dir, exist_ok=True)
 
 
-@time_wrapper
+@function_runtime_tracker
 def extract_X_features(
     X: pd.DataFrame, save: bool = False, processing="X_train"
 ) -> pd.DataFrame:

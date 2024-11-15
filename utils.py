@@ -29,7 +29,7 @@ def print_boundary(center_information="", fill_char="="):
     print(boundary[:100])
 
 
-def time_wrapper(func):
+def function_runtime_tracker(func):
     """
     Wrapper function to measure the time taken by a function.
 
@@ -46,7 +46,9 @@ def time_wrapper(func):
         start = time.time()
         result = func(*args, **kwargs)
         end = time.time()
-        print(f"Time taken by {func.__name__}: {end-start:.2f} seconds")
+        print_boundary(
+            f"Time taken by {func.__name__}: {end-start:.2f} seconds", fill_char="%"
+        )
         return result
 
     return wrapper
@@ -55,7 +57,7 @@ def time_wrapper(func):
 # ================== Data Loading ==================
 
 
-@time_wrapper
+@function_runtime_tracker
 def load_rawdata() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Load raw data.
@@ -85,6 +87,7 @@ def load_Xtrain_ytrain_Xtest() -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
     return X_train, y_train, X_test
 
 
+@function_runtime_tracker
 def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     """
     Load final data.
@@ -104,6 +107,7 @@ def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
         X_test.shape[0] == 3411 and X_train.shape[1] == X_test.shape[1]
     ), "Data shape error"
 
+    y_train = y_train.values.ravel()
     return X_train, X_test, y_train
 
 
@@ -218,8 +222,40 @@ def elicitStrategy() -> Dict[str, Any]:
 
 
 # ================== Model Tuning ==================
+@function_runtime_tracker
+def evaluate_model(X_train, y_train, model, cv=True):
+    """
+    Evaluate a model using cross-validation or train-test split.
+
+    Args:
+    X_train: pd.DataFrame, training data.
+    y_train: pd.Series, training target.
+    model: Any, model to evaluate.
+    cv: bool, whether to use cross-validation.
+
+    Returns:
+    float, mean F1 score.
+    """
+    if cv:
+        score = cross_val_score(
+            model,
+            X_train,
+            y_train,
+            cv=5,
+            scoring=make_scorer(f1_score, average="micro"),
+        )
+    else:
+        X_tr, X_val, y_tr, y_val = train_test_split(
+            X_train, y_train, test_size=0.2, random_state=42, stratify=y_train
+        )
+        model.fit(X_tr, y_tr)
+        y_pred = model.predict(X_val)
+        score = f1_score(y_val, y_pred, average="micro")
+
+    return score.mean()
 
 
+@function_runtime_tracker
 def get_best_parameters(X_train, y_train, estimator, parameters, verbose=0, cv=True):
 
     best_parameters = {}
@@ -236,22 +272,7 @@ def get_best_parameters(X_train, y_train, estimator, parameters, verbose=0, cv=T
     ):
         estimator.set_params(**dict(zip(parameters.keys(), p)))
 
-        if cv:
-            score = cross_val_score(
-                estimator,
-                X_train,
-                y_train,
-                cv=5,
-                scoring=make_scorer(f1_score, average="micro"),
-            )
-        else:
-            X_tr, X_val, y_tr, y_val = train_test_split(
-                X_train, y_train, test_size=0.2, random_state=42, stratify=y_train
-            )
-            estimator.fit(X_tr, y_tr)
-            y_pred = estimator.predict(X_val)
-            score = f1_score(y_val, y_pred, average="micro")
-            
+        score = evaluate_model(X_train, y_train, estimator, cv=cv)
 
         if verbose == 1:
             # print every 20 iterations
@@ -312,8 +333,9 @@ def submit_pred(y_pred: np.ndarray, filename: str = "submission.csv") -> None:
 
     return None
 
+
 def calculate_weights(scores, base=3.0, delta=0.02):
-        min_score = min(scores)
-        weights = np.array([base ** ((s - min_score) / delta) for s in scores])
-        weights /= np.sum(weights)
-        return weights
+    min_score = min(scores)
+    weights = np.array([base ** ((s - min_score) / delta) for s in scores])
+    weights /= np.sum(weights)
+    return weights

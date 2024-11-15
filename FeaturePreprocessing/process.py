@@ -104,7 +104,7 @@ def handleImbalance(
     return X_train, y_train
 
 
-@time_wrapper
+@function_runtime_tracker
 def processWithStrategy(
     warmstart: bool = True, save: bool = False
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
