@@ -66,8 +66,8 @@ def load_rawdata() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     Tuple of three DataFrames: train, test, and sample_submission.
     """
 
-    traindata = pd.read_csv(datadir + "/train.csv", index_col="id")
-    testdata = pd.read_csv(datadir + "/test.csv", index_col="id")
+    traindata = pd.read_csv(datadir + "/Input/train.csv", index_col="id")
+    testdata = pd.read_csv(datadir + "/Input/test.csv", index_col="id")
 
     return traindata, testdata
 
