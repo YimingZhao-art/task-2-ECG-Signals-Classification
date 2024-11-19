@@ -53,6 +53,12 @@ def train_and_validate(
     root,
     name,
 ):
+    best = f"{root}trainedModels/fold{current_fold}_{name}.pth"
+    # if exists, just return the path
+    if os.path.exists(best):
+        print("Model already trained")
+        return best
+
     curr_best = 0
     curr_name = ""
     step = 0
@@ -104,7 +110,16 @@ def train_and_validate(
     return curr_name
 
 
-def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
+def train_fold(
+    current_fold,
+    root,
+    num_cores=8,
+    n_epoch1=50,
+    n_epoch2=50,
+    batch_size=128,
+    num_workers=4,
+    pin_memory=True,
+):
     X_train_raw, y_train_raw, X_test_raw = load_Xtrain_ytrain_Xtest()
     y_train_raw = y_train_raw.to_numpy()
 
@@ -135,12 +150,21 @@ def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
 
     print(X_train.shape, y_train.shape)
 
-    batch_size = 32
-
     dataset = MyDataset(X_train, y_train)
     val_dataset = MyDataset(X_val, y_val)
-    dataloader = DataLoader(dataset, batch_size=batch_size)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
+
+    dataloader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        pin_memory=pin_memory,
+        num_workers=num_workers,
+    )
+    val_dataloader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        pin_memory=pin_memory,
+        num_workers=num_workers,
+    )
 
     kernel_size = 16
     stride = 2
@@ -197,6 +221,12 @@ def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
     )  # change the classifier to a new one
     model.to(device)
 
+    # 重新初始化优化器和调度器
+    optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="min", factor=0.1, patience=10
+    )
+
     print("Training the second stage")
 
     best_model_path = train_and_validate(
@@ -219,11 +249,14 @@ def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
     X_test = np.expand_dims(test_expanded, 1)
     y_train = y_train_raw
 
-    batch_size = 32
     train_dataset = MyDataset(X_train, y_train)
     test_dataset = MyDataset(X_test, np.zeros(X_test.shape[0]))
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
+    train_dataloader = DataLoader(
+        train_dataset, batch_size=batch_size, num_workers=4, pin_memory=True
+    )
+    test_dataloader = DataLoader(
+        test_dataset, batch_size=batch_size, num_workers=4, pin_memory=True
+    )
 
     classifier = linear_feature_extractor_classifier(1024, 4)
 
@@ -271,14 +304,23 @@ def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
     )
 
 
-def main(test=True):
+def main(test=True, batch_size=128, num_workers=4, pin_memory=True):
     if test:
         train_fold(
             current_fold, root, num_cores=8, n_epoch1=1, n_epoch2=1
         )  # run for only one fold and one epoch
     else:
         for i in range(5):
-            train_fold(i, root, num_cores=16, n_epoch1=50, n_epoch2=50)
+            train_fold(
+                i,
+                root,
+                num_cores=16,
+                n_epoch1=50,
+                n_epoch2=50,
+                batch_size=batch_size,
+                num_workers=num_workers,
+                pin_memory=pin_memory,
+            )
 
 
 if __name__ == "__main__":
