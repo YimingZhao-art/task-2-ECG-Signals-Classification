@@ -12,11 +12,8 @@ from torch.utils.data import DataLoader
 current_folder = os.path.dirname(os.path.realpath(__file__))
 
 root = "../../"
-sys.path.append(current_folder)
-print(os.path.join(current_folder, root))
 sys.path.append(os.path.join(current_folder, root))
 root = os.path.join(current_folder, root)
-print(root)
 
 if not os.path.exists(root):
     exit()
@@ -25,12 +22,7 @@ if not os.path.exists(os.path.join(root, "Folds")):
     exit()
 
 from extract_signals import *
-from resnet import (
-    linear_feature_extractor_classifier,
-    ResNet1D,
-    linear_feature_extractor_classifier,
-    MyDataset,
-)
+from resnet import ResNet1D, MyDataset, linear_feature_extractor_classifier
 from utils import *
 
 
@@ -58,7 +50,7 @@ def train_and_validate(
     curr_best = 0
     curr_name = ""
     step = 0
-    for epoch in range(n_epoch):
+    for epoch in tqdm(range(n_epoch), desc="epoch"):
         # 训练
         model.train()
         for batch_idx, batch in enumerate(dataloader):
@@ -86,20 +78,22 @@ def train_and_validate(
         all_pred = np.argmax(all_pred_prob, axis=1)
         all_true_pred = np.concatenate(true_pred)
         score = f1_score(all_true_pred, all_pred, average="micro")
-        print("Fold:", current_fold, "Epoch:", epoch, "F1:", score)
+
+        tqdm.write(f"Epoch {epoch}/{n_epoch}, F1 score: {score}")
 
         # update the best model when necessary
         if score > curr_best:
-            curr_best = score
-            curr_name = f"{root}trainedModels/fold{current_fold}_{name}.pth"
-
-        if (epoch + 1) % 10 == 0 or epoch == n_epoch - 1:  # periodically save the model
             # periodically save the model
             try:
                 os.remove(curr_name)
             except:
                 pass
+            curr_best = score
+            curr_name = f"{root}trainedModels/fold{current_fold}_{name}.pth"
+
             torch.save(model.state_dict(), curr_name)
+
+    return curr_name
 
 
 def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
@@ -174,7 +168,7 @@ def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
     )  # set up scheduler, it will reduce the learning rate by 0.1 if the loss does not decrease for 10 consecutive epochs
     loss_func = torch.nn.CrossEntropyLoss()
 
-    train_and_validate(
+    current_best = train_and_validate(
         model,
         dataloader,
         val_dataloader,
@@ -188,7 +182,6 @@ def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
         "resnet_classifier",
     )
 
-    current_best = f"{root}trainedModels/fold{current_fold}_resnet_classifier.pth"
     model.load_state_dict(torch.load(current_best))
 
     model.classifier = linear_feature_extractor_classifier(
@@ -198,7 +191,7 @@ def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
 
     print("Training the second stage")
 
-    train_and_validate(
+    best_model_path = train_and_validate(
         model,
         dataloader,
         val_dataloader,
@@ -212,5 +205,74 @@ def train_fold(current_fold, root, num_cores=8, n_epoch1=50, n_epoch2=50):
         "resnet_extractor",
     )
 
+    test_expanded = multi_features(X_test_raw, n_cores=num_cores)
+
+    X_train = np.expand_dims(train_expanded, 1)
+    X_test = np.expand_dims(test_expanded, 1)
+    y_train = y_train_raw
+
+    batch_size = 32
+    train_dataset = MyDataset(X_train, y_train)
+    test_dataset = MyDataset(X_test, np.zeros(X_test.shape[0]))
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size)
+
+    classifier = linear_feature_extractor_classifier(1024, 4)
+
+    model = ResNet1D(
+        in_channels=1,
+        base_filters=128,  # 64 for ResNet1D, 352 for ResNeXt1D
+        kernel_size=kernel_size,
+        stride=stride,
+        groups=32,
+        n_block=n_block,
+        n_classes=4,
+        downsample_gap=downsample_gap,
+        increasefilter_gap=increasefilter_gap,
+        use_do=True,
+        classifier=classifier,
+    )
+    model.load_state_dict(torch.load(best_model_path))
+    model.dense = torch.nn.Identity()
+    model.to(device)
+    model.eval()
+
+    def get_features(dataloader):
+        features = []
+        for batch_idx, batch in enumerate(dataloader):
+            input_x, input_y = tuple(t.to(device) for t in batch)
+            pred = model(input_x)
+            n_pred = pred.cpu().data.numpy()
+            features += [x for x in n_pred]
+        return features
+
+    train_features = np.array(get_features(train_dataloader))
+    test_features = np.array(get_features(test_dataloader))
+    print("Features extracted")
+    print(train_features.shape, test_features.shape)
+
+    np.savetxt(
+        root + "Data/features/" + f"resnet_training_features{current_fold}.txt",
+        train_features,
+        delimiter=",",
+    )
+    np.savetxt(
+        root + "Data/features/" + f"resnet_test_features{current_fold}.txt",
+        test_features,
+        delimiter=",",
+    )
+
+
+def main(test=True):
+    if test:
+        train_fold(
+            current_fold, root, num_cores=8, n_epoch1=1, n_epoch2=1
+        )  # run for only one fold and one epoch
+    else:
+        for i in range(5):
+            train_fold(i, root, num_cores=16, n_epoch1=50, n_epoch2=50)
+
+
 if __name__ == "__main__":
-    train_fold(current_fold, root, num_cores=8, n_epoch1=1, n_epoch2=1)
+    print("Testing for only one fold and one epoch")
+    main()

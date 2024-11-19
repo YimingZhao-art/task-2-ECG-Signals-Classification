@@ -4,3 +4,4 @@ Data/features/*
 Data/final/*
 catboost_info/*
 Models/catboost*
+trainedModels/*.pth
