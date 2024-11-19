@@ -1,4 +1,3 @@
-import pandas as pd
 import numpy as np
 
 import torch
@@ -12,8 +11,11 @@ from torch.utils.data import DataLoader
 current_folder = os.path.dirname(os.path.realpath(__file__))
 
 root = "../../"
+sys.path.append(current_folder)
+print(os.path.join(current_folder, root))
 sys.path.append(os.path.join(current_folder, root))
 root = os.path.join(current_folder, root)
+print("Root:", root)
 
 if not os.path.exists(root):
     exit()
@@ -22,7 +24,11 @@ if not os.path.exists(os.path.join(root, "Folds")):
     exit()
 
 from extract_signals import *
-from resnet import ResNet1D, MyDataset, linear_feature_extractor_classifier
+from resnet import (
+    linear_feature_extractor_classifier,
+    ResNet1D,
+    MyDataset,
+)
 from utils import *
 
 
@@ -50,7 +56,8 @@ def train_and_validate(
     curr_best = 0
     curr_name = ""
     step = 0
-    for epoch in tqdm(range(n_epoch), desc="epoch"):
+    pbar = tqdm(range(n_epoch), desc="epoch")
+    for epoch in pbar:
         # 训练
         model.train()
         for batch_idx, batch in enumerate(dataloader):
@@ -79,7 +86,8 @@ def train_and_validate(
         all_true_pred = np.concatenate(true_pred)
         score = f1_score(all_true_pred, all_pred, average="micro")
 
-        tqdm.write(f"Epoch {epoch}/{n_epoch}, F1 score: {score}")
+        # 更新进度条的后缀信息
+        pbar.set_postfix(F1=score)
 
         # update the best model when necessary
         if score > curr_best:
