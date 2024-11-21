@@ -52,17 +52,31 @@ def train_and_validate(
     current_fold,
     root,
     name,
+    start_epoch=0,
+    best_score=0,
 ):
     best = f"{root}trainedModels/fold{current_fold}_{name}.pth"
+    checkpoint_path = f"{root}trainedModels/fold{current_fold}_{name}_checkpoint.pth"
+    
+    # 加载检查点
+    if os.path.exists(checkpoint_path):
+        checkpoint = torch.load(checkpoint_path)
+        model.load_state_dict(checkpoint['model_state'])
+        optimizer.load_state_dict(checkpoint['optimizer_state'])
+        scheduler.load_state_dict(checkpoint['scheduler_state'])
+        start_epoch = checkpoint['epoch'] + 1
+        best_score = checkpoint['best_score']
+        print(f"Loaded checkpoint from epoch {checkpoint['epoch']}")
+    
     # if exists, just return the path
     if os.path.exists(best):
         print("Model already trained")
         return best
 
-    curr_best = 0
+    curr_best = best_score
     curr_name = ""
     step = 0
-    pbar = tqdm(range(n_epoch), desc="epoch")
+    pbar = tqdm(range(start_epoch, n_epoch), desc="epoch")
     for epoch in pbar:
         # 训练
         model.train()
@@ -97,15 +111,22 @@ def train_and_validate(
 
         # update the best model when necessary
         if score > curr_best:
-            # periodically save the model
             try:
                 os.remove(curr_name)
             except:
                 pass
             curr_best = score
             curr_name = f"{root}trainedModels/fold{current_fold}_{name}.pth"
-
             torch.save(model.state_dict(), curr_name)
+
+        # 保存检查点
+        torch.save({
+            'epoch': epoch,
+            'model_state': model.state_dict(),
+            'optimizer_state': optimizer.state_dict(),
+            'scheduler_state': scheduler.state_dict(),
+            'best_score': curr_best,
+        }, checkpoint_path)
 
     return curr_name
 
