@@ -112,11 +112,13 @@ def processWithStrategy(
         # directly read the processed data in the final folder
         print("Reading the processed data from the final folder", final_data_folder)
         X_train = pd.read_csv(
-            os.path.join(final_data_folder, "X_train.csv"), index_col=0
+            os.path.join(final_data_folder, "p2_X_train.csv"), index_col=0
         )
-        X_test = pd.read_csv(os.path.join(final_data_folder, "X_test.csv"), index_col=0)
+        X_test = pd.read_csv(
+            os.path.join(final_data_folder, "p2_X_test.csv"), index_col=0
+        )
         y_train = pd.read_csv(
-            os.path.join(final_data_folder, "y_train.csv"), index_col=0
+            os.path.join(final_data_folder, "p2_y_train.csv"), index_col=0
         )
         return X_train, y_train, X_test
 
@@ -160,9 +162,9 @@ def processWithStrategy(
 
     if save:
         print("Saving the processed data to the final folder", final_data_folder)
-        X_train.to_csv(os.path.join(final_data_folder, "X_train.csv"))
-        X_test.to_csv(os.path.join(final_data_folder, "X_test.csv"))
-        y_train.to_csv(os.path.join(final_data_folder, "y_train.csv"))
+        X_train.to_csv(os.path.join(final_data_folder, "p2_X_train.csv"))
+        X_test.to_csv(os.path.join(final_data_folder, "p2_X_test.csv"))
+        y_train.to_csv(os.path.join(final_data_folder, "p2_y_train.csv"))
 
     print("Shape of X_train:", X_train.shape)
     print("Shape of X_test:", X_test.shape)
@@ -173,8 +175,9 @@ def processWithStrategy(
 
 
 def main():
-    X_train, y_train, X_test = processWithStrategy(save=True)
-
+    X_train, y_train, X_test = processWithStrategy(save=True, warmstart=False)
+    return
+    
     # split while keep the imbalance ratio
     X_tr, X_val, y_tr, y_val = train_test_split(
         X_train,
@@ -183,6 +186,8 @@ def main():
         stratify=y_train,
         random_state=42,
     )
+
+    
 
     # it is multi-class classification
     # use multi_logloss as objective
@@ -205,7 +210,7 @@ def main():
     lgbm.fit(X_tr, y_tr, eval_set=[(X_val, y_val)])
 
     y_pred = lgbm.predict(X_val)
-    print(f"F1 Score: {f1_score(y_val, y_pred, average='weighted')}")
+    print(f"F1 Score: {f1_score(y_val, y_pred, average='micro')}")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
-LGBM|0.8761
-XGB|0.8761
+LGBM|0.8861
+XGB|0.8861
 CatBoost|0.876
 GradientBoosting|0.8701
 ExtraTrees|0.8799

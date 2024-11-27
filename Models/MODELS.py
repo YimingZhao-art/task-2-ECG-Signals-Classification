@@ -24,10 +24,17 @@ from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 from catboost import CatBoostClassifier
 
+import torch
+
+
 vanilla_models = {
     # "GaussianProcess": GaussianProcessClassifier(kernel=RBF(), n_jobs=-1),
     "LGBM": LGBMClassifier(n_jobs=-1, verbose=-1, random_state=42),
-    "XGB": XGBClassifier(n_jobs=-1, random_state=42),
+    "XGB": (
+        XGBClassifier(n_jobs=-1, random_state=42)
+        if not torch.cuda.is_available()
+        else XGBClassifier(n_jobs=-1, random_state=42, tree_method="gpu_hist")
+    ),
     "CatBoost": CatBoostClassifier(verbose=0, random_state=42),
     "GradientBoosting": GradientBoostingClassifier(
         verbose=0, random_state=42
@@ -59,14 +66,27 @@ finetuned_models = {
         subsample=0.9,
         random_state=42,
     ),
-    "XGB": XGBClassifier(
-        n_jobs=-1,
-        n_estimators=800,
-        learning_rate=0.03,
-        verbosity=0,
-        min_child_weight=5,
-        max_depth=7,
-        random_state=42,
+    "XGB": (
+        XGBClassifier(
+            n_jobs=-1,
+            n_estimators=800,
+            learning_rate=0.03,
+            verbosity=0,
+            min_child_weight=5,
+            max_depth=7,
+            random_state=42,
+        )
+        if not torch.cuda.is_available()
+        else XGBClassifier(
+            n_jobs=-1,
+            n_estimators=800,
+            learning_rate=0.03,
+            verbosity=0,
+            min_child_weight=5,
+            max_depth=7,
+            random_state=42,
+            tree_method="gpu_hist",
+        )
     ),
     "CatBoost": CatBoostClassifier(
         verbose=0, auto_class_weights="SqrtBalanced", random_state=42
@@ -84,7 +104,9 @@ finetuned_models = {
         random_state=42,
     ),
     "Bagging": BaggingClassifier(random_state=42, n_estimators=100, n_jobs=-1),
-    "RandomForest": RandomForestClassifier(random_state=42, n_jobs=-1, n_estimators=700, class_weight="balanced"),
+    "RandomForest": RandomForestClassifier(
+        random_state=42, n_jobs=-1, n_estimators=700, class_weight="balanced"
+    ),
     "LogisticRegression": LogisticRegression(random_state=42),
     "Ridge": RidgeClassifier(random_state=42),
     "SGD": SGDClassifier(random_state=42),
@@ -98,15 +120,16 @@ finetuned_models = {
 
 if __name__ == "__main__":
     import numpy as np
+
     # create a fake dataset
     X = np.random.rand(100, 10)
     y = np.random.randint(0, 3, 100)
-    
+
     # check the models are working
     for name, model in vanilla_models.items():
         model.fit(X, y)
         print(f"Model {name} is trained.")
-        
+
     for name, model in finetuned_models.items():
         model.fit(X, y)
         print(f"Model {name} is trained.")

@@ -54,6 +54,23 @@ def function_runtime_tracker(func):
     return wrapper
 
 
+def check_inf(X: pd.DataFrame) -> List[str]:
+    """check the columns with inf values
+
+    Args:
+        X (pd.DataFrame): The input DataFrame
+
+    Returns:
+        List[str]: The columns with inf values
+    """
+    inf_col = set()
+    for col in X.columns:
+        if np.isinf(X[col]).sum() > 0:
+            # print(col, np.isinf(X[col]).sum())
+            inf_col.add(col)
+    return inf_col
+
+
 # ================== Data Loading ==================
 
 
@@ -95,20 +112,47 @@ def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     Returns:
     Tuple of three DataFrames: X_train, X_test, and y_train.
     """
-    X_train = pd.read_csv(datadir + "/final/final_X_train.csv", header=None).iloc[
-        1:, 1:
-    ]
-    X_test = pd.read_csv(datadir + "/final/final_X_test.csv", header=None).iloc[1:, 1:]
-    y_train = pd.read_csv(datadir + "/final/final_y_train.csv", header=None).iloc[
-        1:, 1:
-    ]
-
+    print_boundary("Loading Final Data", fill_char="=")
+    
+    X_train_p1 = pd.read_csv(datadir + "/final/p1_X_train.csv", index_col=0)
+    X_test_p1 = pd.read_csv(datadir + "/final/p1_X_test.csv", index_col=0)
+    y_train_p1 = pd.read_csv(datadir + "/final/p1_y_train.csv", index_col=0)
+    X_train_p2 = pd.read_csv(datadir + "/final/p2_X_train.csv", index_col=0)
+    X_test_p2 = pd.read_csv(datadir + "/final/p2_X_test.csv", index_col=0)
+    y_train_p2 = pd.read_csv(datadir + "/final/p2_y_train.csv", index_col=0)
+    print(X_train_p1.shape, X_test_p1.shape, y_train_p1.shape)
+    print(X_train_p2.shape, X_test_p2.shape, y_train_p2.shape)
     assert (
-        X_test.shape[0] == 3411 and X_train.shape[1] == X_test.shape[1]
-    ), "Data shape error"
+        X_train_p1.shape[0] == y_train_p1.shape[0]
+    ), "X_train_p1 and y_train_p1 not equal"
+    assert (
+        X_train_p2.shape[0] == y_train_p2.shape[0]
+    ), "X_train_p2 and y_train_p2 not equal"
+    assert (
+        y_train_p2.values.ravel() == y_train_p2.values.ravel()
+    ).all() == True, "y_train_p2 not equal to y_train_p2"
+    
+    X_train_total = pd.concat(
+        [X_train_p1, X_train_p2], axis=1
+    )  # concat along columns, column-wise
+    X_test_total = pd.concat([X_test_p1, X_test_p2], axis=1)
+    y_train_total = y_train_p1
 
-    y_train = y_train.values.ravel()
-    return X_train, X_test, y_train
+    inf_col = check_inf(X_train_total) | check_inf(X_test_total)
+    inf_col = list(inf_col)
+    print("Columns with inf values: ", inf_col)
+    # drop the columns with inf values
+    X_train_total = X_train_total.drop(inf_col, axis=1)
+    X_test_total = X_test_total.drop(inf_col, axis=1)
+    X_train_total.to_csv(datadir + "/final/X_train_total.csv")
+    X_test_total.to_csv(datadir + "/final/X_test_total.csv")
+    y_train_total.to_csv(datadir + "/final/y_train_total.csv")
+
+    print_boundary("Final Data Shape", fill_char="-")
+    print(X_train_total.shape, X_test_total.shape, y_train_total.shape)
+    print_boundary()
+
+    return X_train_total, X_test_total, y_train_total.values.ravel()
 
 
 # ================== Feature Preprocessing ==================

@@ -5,3 +5,8 @@ Data/final/*
 catboost_info/*
 Models/catboost*
 trainedModels/*.pth
+*.pyc
+__pycache__/*.pyc
+Models/__pycache__/*.pyc
+FeaturePreprocessing/__pycache__/*.pyc
+Models/__pycache__/MODELS.cpython-311.pyc
