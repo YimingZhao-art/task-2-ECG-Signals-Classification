@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import sys
+import glob
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.pipeline import Pipeline
 
@@ -89,7 +90,14 @@ def main():
         )
         pd.DataFrame(y_all).to_csv(os.path.join(read_dir, f"y_all_{fold}.csv"))
 
-    for i in range(5):
+    # 动态检测fold数量
+    fold_files = glob.glob(os.path.join(read_dir, "X_all_*.csv"))
+    n_folds = len(fold_files)
+    
+    print("n_folds:", n_folds)
+
+    # 生成fold特征
+    for i in range(n_folds):
         get_prediction_estimator(fold=i)
 
     for i in range(1):
@@ -105,12 +113,12 @@ def main():
             .ravel()
         )
 
-    # merge by averaging 5 folds
+    # 合并特征时使用动态fold数量
     X_all = np.zeros(X_all.shape)
     X_test_combined = np.zeros(X_test_combined.shape)
     y_all = np.zeros(y_all.shape)
 
-    for i in range(5):
+    for i in range(n_folds):
         X_all += pd.read_csv(
             os.path.join(read_dir, f"X_all_{i}.csv"), index_col=0
         ).to_numpy()
@@ -123,9 +131,9 @@ def main():
             .ravel()
         )
 
-    X_all /= 5
-    X_test_combined /= 5
-    y_all /= 5
+    X_all /= n_folds
+    X_test_combined /= n_folds
+    y_all /= n_folds
     # set y_all back to int
     y_all = y_all.astype(int)
 
