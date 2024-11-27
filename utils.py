@@ -113,7 +113,7 @@ def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     Tuple of three DataFrames: X_train, X_test, and y_train.
     """
     print_boundary("Loading Final Data", fill_char="=")
-    
+
     X_train_p1 = pd.read_csv(datadir + "/final/p1_X_train.csv", index_col=0)
     X_test_p1 = pd.read_csv(datadir + "/final/p1_X_test.csv", index_col=0)
     y_train_p1 = pd.read_csv(datadir + "/final/p1_y_train.csv", index_col=0)
@@ -131,7 +131,7 @@ def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     assert (
         y_train_p2.values.ravel() == y_train_p2.values.ravel()
     ).all() == True, "y_train_p2 not equal to y_train_p2"
-    
+
     X_train_total = pd.concat(
         [X_train_p1, X_train_p2], axis=1
     )  # concat along columns, column-wise

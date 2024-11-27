@@ -14,6 +14,7 @@ read_dir = os.path.join(current_dir, "../Data/features/")
 final_dir = os.path.join(current_dir, "../Data/final/")
 os.makedirs(read_dir, exist_ok=True)
 
+
 def main():
 
     X_train_hc_unprocessed = pd.read_csv(
@@ -22,8 +23,9 @@ def main():
     X_test_hc_unprocessed = pd.read_csv(
         read_dir + "manual2_test_features.csv", index_col=0
     ).to_numpy()
-    y_tot = pd.read_csv(read_dir + "manual2_train_y.csv", index_col=0).to_numpy().ravel()
-
+    y_tot = (
+        pd.read_csv(read_dir + "manual2_train_y.csv", index_col=0).to_numpy().ravel()
+    )
 
     X_train_hc_no_nan = np.nan_to_num(X_train_hc_unprocessed, nan=0)
     X_test_hc_no_nan = np.nan_to_num(X_test_hc_unprocessed, nan=0)
@@ -36,9 +38,7 @@ def main():
     X_tot_hc = pipe.fit_transform(X_train_hc_no_nan, y_tot)
     X_test_hc = pipe.transform(X_test_hc_no_nan)
 
-
     columns_names = []
-
 
     def get_prediction_estimator(fold):
 
@@ -89,7 +89,6 @@ def main():
         )
         pd.DataFrame(y_all).to_csv(os.path.join(read_dir, f"y_all_{fold}.csv"))
 
-
     for i in range(5):
         get_prediction_estimator(fold=i)
 
@@ -105,7 +104,6 @@ def main():
             .to_numpy()
             .ravel()
         )
-
 
     # merge by averaging 5 folds
     X_all = np.zeros(X_all.shape)
@@ -139,12 +137,12 @@ def main():
     )
     pd.DataFrame(y_all).to_csv(os.path.join(final_dir, "p1_y_train.csv"))
 
-
     print_boundary("Finished merging the features", fill_char="*")
     print("The shape of the final X_train:", X_all.shape)
     print("The shape of the final X_test:", X_test_combined.shape)
     print("The shape of the final y_train:", y_all.shape)
     print_boundary(fill_char="*")
+
 
 if __name__ == "__main__":
     main()

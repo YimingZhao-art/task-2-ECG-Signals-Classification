@@ -8,6 +8,7 @@ class MyDataset(Dataset):
     """
     自定义数据集类，用于加载数据和标签
     """
+
     def __init__(self, data, label):
         self.data = data
         self.label = label
@@ -26,6 +27,7 @@ class MyConv1dPadSame(nn.Module):
     """
     扩展 nn.Conv1d 以支持 SAME 填充
     """
+
     def __init__(self, in_channels, out_channels, kernel_size, stride, groups=1):
         super(MyConv1dPadSame, self).__init__()
         self.in_channels = in_channels
@@ -58,6 +60,7 @@ class MyMaxPool1dPadSame(nn.Module):
     """
     扩展 nn.MaxPool1d 以支持 SAME 填充
     """
+
     def __init__(self, kernel_size):
         super(MyMaxPool1dPadSame, self).__init__()
         self.kernel_size = kernel_size
@@ -81,6 +84,7 @@ class BasicBlock(nn.Module):
     """
     ResNet 基本块
     """
+
     def __init__(
         self,
         in_channels,
@@ -192,6 +196,7 @@ class ResNet1D(nn.Module):
         n_block: 块的数量
         n_classes: 类别数量
     """
+
     def __init__(
         self,
         in_channels,
@@ -315,6 +320,7 @@ class linear_classifier(nn.Module):
     参数:
         n_classes: 类别数量
     """
+
     def __init__(self, in_channels, n_classes, verbose=False):
         super(linear_classifier, self).__init__()
 
@@ -356,6 +362,7 @@ class linear_feature_extractor_classifier(nn.Module):
     参数:
         n_classes: 类别数量
     """
+
     def __init__(self, in_channels, n_classes, verbose=False):
         super(linear_feature_extractor_classifier, self).__init__()
 
@@ -407,6 +414,7 @@ class RNN_feature_extractor_classifier(nn.Module):
     参数:
         n_classes: 类别数量
     """
+
     def __init__(self, input_size, hidden_size, n_classes, num_layers, verbose=False):
         super(RNN_feature_extractor_classifier, self).__init__()
 
@@ -480,6 +488,7 @@ class RNN_classifier(nn.Module):
     参数:
         n_classes: 类别数量
     """
+
     def __init__(self, input_size, hidden_size, n_classes, num_layers, verbose=False):
         super(RNN_classifier, self).__init__()
 

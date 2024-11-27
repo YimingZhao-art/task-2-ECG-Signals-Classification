@@ -1,4 +1,5 @@
 from FeatureExtraction.feats_manual import main as extract_features_manual
+from FeatureExtraction.feats_manual2 import main as extract_features_manual2
 from FeaturePreprocessing.process import main as process_data
 from NNModels.DeepNet.trainmodel import main as extract_features_deepnet
 from NNModels.ENCASE.trainmodel import main as extract_features_encase
@@ -27,9 +28,13 @@ def main(have_extracted=True):
 
     print_boundary("Using the Neural Network Models to extract features", fill_char="*")
     if not have_extracted:
-        # manual_2
-        extract_features_deepnet(test=True)  # test the functionality of the function
-        extract_features_encase(test=True)  # test the functionality of the function
+        extract_features_manual2()  # this save the features/manual2_train_features.csv
+        extract_features_deepnet(
+            test=True
+        )  # test the functionality of the function, this save the Data/features/resnet_test_features[fold].txt
+        extract_features_encase(
+            test=True
+        )  # test the functionality of the function, this save the Data/features/encase_test_features[fold].txt
 
     combine_features()  # this save the final/p1_X_train.csv, final/p1_X_test.csv, final/p1_y_train.csv
 
@@ -37,6 +42,7 @@ def main(have_extracted=True):
 
     print_boundary("Training the model", fill_char="=")
     model_prediction(filename="test_result")
+
 
 if __name__ == "__main__":
     main(have_extracted=True)

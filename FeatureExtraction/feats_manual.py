@@ -76,10 +76,12 @@ def extract_X_features(
     # Save the normalized dataframe to a CSV file
     X_features.to_csv(f"{save_dir}{processing}_features.csv")
 
+
 def main():
     X_train, y_train, X_test = load_Xtrain_ytrain_Xtest()
     extract_X_features(X=X_train, save=True, processing="X_train")
     extract_X_features(X=X_test, save=True, processing="X_test")
+
 
 if __name__ == "__main__":
     main()

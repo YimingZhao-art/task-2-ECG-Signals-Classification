@@ -1,6 +1,6 @@
 import csv
 import os
-import sys 
+import sys
 
 import biosppy.signals.ecg as ecg
 import biosppy
@@ -34,42 +34,52 @@ freq_array = [
     19.56926069,
 ]
 
-def extract_fft_heartbeat(heartbeat, n = 10, freq_array = freq_array):
+
+def extract_fft_heartbeat(heartbeat, n=10, freq_array=freq_array):
 
     fourier_specture = np.abs(fft(heartbeat))
-    freqs = sf.fftfreq(len(fourier_specture), 1. / 300.)
+    freqs = sf.fftfreq(len(fourier_specture), 1.0 / 300.0)
     fourier_specture = fourier_specture[freqs >= 0]
     freqs = freqs[freqs >= 0]
-    
+
     # cut even more base on the freq_array
     fourier_specture = fourier_specture[freqs <= freq_array[-1]]
     freqs = freqs[freqs <= freq_array[-1]]
-    
+
     # compute the sums of frequency bands
     sums = []
     sums.append(np.sum(fourier_specture[freqs <= freq_array[0]]))
     for i in range(len(freq_array) - 1):
-        sum = np.sum(fourier_specture[np.logical_and(freqs > freq_array[i], freqs <= freq_array[i+1])])
+        sum = np.sum(
+            fourier_specture[
+                np.logical_and(freqs > freq_array[i], freqs <= freq_array[i + 1])
+            ]
+        )
         sums.append(sum)
-        
+
     return sums
+
 
 def extract_fft_feature(clean_signal):
     _, info = nk.ecg_peaks(ecg_cleaned=clean_signal, sampling_rate=300)
     fft_features = []
     n_peaks = 10
-    peaks = info['ECG_R_Peaks']
-    beats = biosppy.signals.ecg.extract_heartbeats(signal=clean_signal, rpeaks=peaks,sampling_rate=300)["templates"]
+    peaks = info["ECG_R_Peaks"]
+    beats = biosppy.signals.ecg.extract_heartbeats(
+        signal=clean_signal, rpeaks=peaks, sampling_rate=300
+    )["templates"]
     n_beats = len(beats)
     for i in range(n_beats):
         fft_features.append(np.array(extract_fft_heartbeat(beats[i], n_peaks)))
-    
+
     fft_features = list(np.array(fft_features).T)
 
     return fft_features
 
+
 empty = np.empty(1)
 empty[:] = np.nan
+
 
 def get_pqrst_peaks(data):
     p_peaks = []
@@ -92,14 +102,14 @@ def get_pqrst_peaks(data):
             # find the maximum, but cut the search area to the first half to avoid
             # finding peaks at the wrong place
             r = np.argmax(template[: int(len(template) / 2)])
-            
+
             # q and s are the first minima after and before the r value
             q = loc_min[loc_min < r][-1]
             s = loc_min[loc_min > r][0]
             # p and t are the first maxima after and before the r value
             p = loc_max[loc_max < r][-1]
             t = loc_max[loc_max > r][0]
-            
+
             r_peaks_loc.append(r)
             q_peaks.append(q)
             s_peaks.append(s)
@@ -118,7 +128,7 @@ def get_pqrst_peaks(data):
             q_a = template[q]
             s_a = template[s]
             t_a = template[t]
-        
+
             t_amp.append[t_a]
             p_amp.append[p_a]
             q_amp.append[q_a]
@@ -131,11 +141,24 @@ def get_pqrst_peaks(data):
             s_amp.append(ex)
             p_amp.append(ex)
             t_amp.append(ex)
-        
-    peaks = [np.array(p_peaks), np.array(q_peaks),np.array(r_peaks_loc), np.array(s_peaks), np.array(t_peaks)]
-    amps = [ np.array(p_amp), np.array(q_amp),np.array(r_amp), np.array(s_amp), np.array(t_amp) ]
+
+    peaks = [
+        np.array(p_peaks),
+        np.array(q_peaks),
+        np.array(r_peaks_loc),
+        np.array(s_peaks),
+        np.array(t_peaks),
+    ]
+    amps = [
+        np.array(p_amp),
+        np.array(q_amp),
+        np.array(r_amp),
+        np.array(s_amp),
+        np.array(t_amp),
+    ]
 
     return peaks, amps
+
 
 # very bad almost never works
 def get_pqrst_peaks_biosppy(data):
@@ -154,36 +177,45 @@ def get_pqrst_peaks_biosppy(data):
 
 def extract_r_peaks(signal):
     _, r_peaks_nk = nk.ecg_peaks(signal, sampling_rate=300)
-    s = len(r_peaks_nk['ECG_R_Peaks'])
-    return np.array(r_peaks_nk['ECG_R_Peaks'])
+    s = len(r_peaks_nk["ECG_R_Peaks"])
+    return np.array(r_peaks_nk["ECG_R_Peaks"])
+
 
 def delineate(signal, r_peaks):
     try:
-        _, waves_peak = nk.ecg_delineate(signal, r_peaks, sampling_rate=300, method='dwt')
+        _, waves_peak = nk.ecg_delineate(
+            signal, r_peaks, sampling_rate=300, method="dwt"
+        )
     except:
         try:
-            _, waves_peak = nk.ecg_delineate(signal, r_peaks, sampling_rate=300, method='peak')
+            _, waves_peak = nk.ecg_delineate(
+                signal, r_peaks, sampling_rate=300, method="peak"
+            )
         except:
-            _, waves_peak = nk.ecg_delineate(signal, r_peaks, sampling_rate=300, method='cwt')
-            
+            _, waves_peak = nk.ecg_delineate(
+                signal, r_peaks, sampling_rate=300, method="cwt"
+            )
+
     return waves_peak
 
+
 def extract_other_peaks(signal, r_peaks):
-    
-    if (len(r_peaks) >= 1): 
+
+    if len(r_peaks) >= 1:
         try:
             waves_peak = delineate(signal, r_peaks)
         except:
             return empty, empty, empty, empty, empty
 
-        p_peaks = np.array(waves_peak['ECG_P_Peaks'])       
-        q_peaks = np.array(waves_peak['ECG_Q_Peaks'])
-        s_peaks = np.array(waves_peak['ECG_S_Peaks'])
-        t_peaks = np.array(waves_peak['ECG_T_Peaks'])
+        p_peaks = np.array(waves_peak["ECG_P_Peaks"])
+        q_peaks = np.array(waves_peak["ECG_Q_Peaks"])
+        s_peaks = np.array(waves_peak["ECG_S_Peaks"])
+        t_peaks = np.array(waves_peak["ECG_T_Peaks"])
 
         return p_peaks, q_peaks, s_peaks, t_peaks, r_peaks
     else:
         return empty, empty, empty, empty, r_peaks
+
 
 def extract_amp(signal, peaks):
     amps = []
@@ -192,6 +224,7 @@ def extract_amp(signal, peaks):
         p_no_nan = p[mask].astype(int)
         amps.append(signal[p_no_nan])
     return amps
+
 
 # not working
 def extract_amp_loc(heartbeats, peaks):
@@ -205,6 +238,7 @@ def extract_amp_loc(heartbeats, peaks):
         amps.append(np.array(peak_amps))
     return amps
 
+
 def extract_relative_pos(signal, left, right):
     if right.shape[0] == left.shape[0]:
         mask = ~np.logical_or(np.isnan(left), np.isnan(right))
@@ -213,14 +247,16 @@ def extract_relative_pos(signal, left, right):
         return extract_relative_pos(signal, left[1:], right)
     else:
         return extract_relative_pos(signal, left, right[1:])
-        
+
+
 def extract_loc(signal, peaks):
     q_loc = extract_relative_pos(signal, peaks[0], peaks[1])
     r_loc = extract_relative_pos(signal, peaks[0], peaks[2])
     s_loc = extract_relative_pos(signal, peaks[0], peaks[3])
     t_loc = extract_relative_pos(signal, peaks[0], peaks[4])
     return [q_loc, r_loc, s_loc, t_loc]
-    
+
+
 def extract_loc_hand(peaks):
     # assumes that non erroneous values are zero
     q_loc = peaks[1] - peaks[0]
@@ -229,28 +265,32 @@ def extract_loc_hand(peaks):
     t_loc = peaks[4] - peaks[0]
     return [q_loc, r_loc, s_loc, t_loc]
 
+
 def extract_dur(signal, peaks):
-    pq_dur  = extract_relative_pos(signal, peaks[0], peaks[1])
+    pq_dur = extract_relative_pos(signal, peaks[0], peaks[1])
     qrs_dur = extract_relative_pos(signal, peaks[1], peaks[3])
-    st_dur  = extract_relative_pos(signal, peaks[3], peaks[4])
+    st_dur = extract_relative_pos(signal, peaks[3], peaks[4])
     return [pq_dur, qrs_dur, st_dur]
 
+
 def extract_dur_and(peaks):
-    pq_dur  = peaks[1] - peaks[0]
-    qrs_dur = peaks[3] - peaks[1] 
-    st_dur  = peaks[4] - peaks[3]
+    pq_dur = peaks[1] - peaks[0]
+    qrs_dur = peaks[3] - peaks[1]
+    st_dur = peaks[4] - peaks[3]
     return [pq_dur, qrs_dur, st_dur]
+
 
 def extract_abs_diff_dur(durs):
     diffs_durs = []
     for dur in durs:
         np_dur = np.array(dur)
         n = len(np_dur)
-        diffs_durs.append(np.abs(np_dur[1:n] - np_dur[0:n-1]))
+        diffs_durs.append(np.abs(np_dur[1:n] - np_dur[0 : n - 1]))
     return diffs_durs
 
+
 def extract_int(signal, peaks):
-    if(len(peaks) > 1):
+    if len(peaks) > 1:
         rr_int = extract_relative_pos(signal, peaks[2][:-1], peaks[2][1:])
         pp_int = extract_relative_pos(signal, peaks[0][:-1], peaks[0][1:])
         tt_int = extract_relative_pos(signal, peaks[4][:-1], peaks[4][1:])
@@ -259,12 +299,15 @@ def extract_int(signal, peaks):
         rr_int = extract_relative_pos(signal, peaks[0][:-1], peaks[0][1:])
         return [rr_int]
 
+
 def extract_qrs_complex(signal, peaks):
-    
-    if (peaks[1].shape[0] != peaks[2].shape[0] or peaks[2].shape[0] != peaks[3].shape[0]):
+
+    if peaks[1].shape[0] != peaks[2].shape[0] or peaks[2].shape[0] != peaks[3].shape[0]:
         return [empty, empty, empty, empty]
-    
-    mask = ~np.logical_or.reduce(np.array([np.isnan(peaks[1]), np.isnan(peaks[2]), np.isnan(peaks[3])]))
+
+    mask = ~np.logical_or.reduce(
+        np.array([np.isnan(peaks[1]), np.isnan(peaks[2]), np.isnan(peaks[3])])
+    )
     q = peaks[1][mask].astype(int)
     r = peaks[2][mask].astype(int)
     s = peaks[3][mask].astype(int)
@@ -277,37 +320,45 @@ def extract_qrs_complex(signal, peaks):
     rs_wave = np.divide(s_amp, r_amp)
     return [qr_amp, qrs_wave, qr_wave, rs_wave]
 
+
 def extract_qrs_hand(amps):
 
     # peaks always have the same lengh
-    #if (peaks[1].shape[0] != peaks[2].shape[0] or peaks[2].shape[0] != peaks[3].shape[0]):
+    # if (peaks[1].shape[0] != peaks[2].shape[0] or peaks[2].shape[0] != peaks[3].shape[0]):
     #    return [empty, empty, empty, empty]
-    
+
     q_amp = amps[1]
     r_amp = amps[2]
     s_amp = amps[3]
     qr_amp = q_amp + r_amp
-    qrs_wave = np.divide(q_amp, qr_amp, out=np.zeros_like(qr_amp).astype(float), where=(qr_amp!=0))
-    qr_wave = np.divide(q_amp, r_amp, out=np.zeros_like(r_amp).astype(float), where=(r_amp!=0))
-    rs_wave = np.divide(r_amp, s_amp, out=np.zeros_like(s_amp).astype(float), where=(s_amp!=0))
+    qrs_wave = np.divide(
+        q_amp, qr_amp, out=np.zeros_like(qr_amp).astype(float), where=(qr_amp != 0)
+    )
+    qr_wave = np.divide(
+        q_amp, r_amp, out=np.zeros_like(r_amp).astype(float), where=(r_amp != 0)
+    )
+    rs_wave = np.divide(
+        r_amp, s_amp, out=np.zeros_like(s_amp).astype(float), where=(s_amp != 0)
+    )
     return [qr_amp, qrs_wave, qr_wave, rs_wave]
-    
+
 
 def get_phases(signal, r_peaks):
     pass
 
-def extract_ecg_data(signal, peak_meth = "hand"):
-    
-    #Check if signal is inverted and correct it if necessary
-    
+
+def extract_ecg_data(signal, peak_meth="hand"):
+
+    # Check if signal is inverted and correct it if necessary
+
     signal, is_inverted = nk.ecg_invert(signal, sampling_rate=300, show=False)
-    
+
     # Variable with additional values
     ind = []
-    
+
     # Extract r peak
     r_peaks = extract_r_peaks(signal)
-    
+
     # Extract other peaks
     if peak_meth == "bio":
         p_peaks, q_peaks, s_peaks, t_peaks, r_peaks = get_pqrst_peaks_biosppy(signal)
@@ -315,7 +366,9 @@ def extract_ecg_data(signal, peak_meth = "hand"):
         # Extract amplitudes
         amps = extract_amp(signal, peaks)
     elif peak_meth == "nk":
-        p_peaks, q_peaks, s_peaks, t_peaks, _ = extract_other_peaks(signal, r_peaks=r_peaks)
+        p_peaks, q_peaks, s_peaks, t_peaks, _ = extract_other_peaks(
+            signal, r_peaks=r_peaks
+        )
         peaks = [p_peaks, q_peaks, r_peaks, s_peaks, t_peaks]
         # Extract amplitudes
         amps = extract_amp(signal, peaks)
@@ -337,22 +390,34 @@ def extract_ecg_data(signal, peak_meth = "hand"):
         durs = extract_dur_and(peaks)
         # Extract intervals
         ints = extract_int(signal, [r_peaks])
-    
-    
+
     # Diffs in the peaksof
     diff_amps = extract_abs_diff_dur(amps)
-    
+
     # Extract difference of durations
     diff_dur = extract_abs_diff_dur(durs)
 
     # Extract interval differences
     diff_ints = extract_abs_diff_dur(ints)
-    
-    # ECG-Rate 
-    ecg_rate = [np.array(nk.signal_rate(r_peaks, sampling_rate=300, desired_length=None))]
-    
-    data = amps + locs + durs + ints + qrs_complex + ecg_rate + diff_ints + diff_dur + diff_amps
+
+    # ECG-Rate
+    ecg_rate = [
+        np.array(nk.signal_rate(r_peaks, sampling_rate=300, desired_length=None))
+    ]
+
+    data = (
+        amps
+        + locs
+        + durs
+        + ints
+        + qrs_complex
+        + ecg_rate
+        + diff_ints
+        + diff_dur
+        + diff_amps
+    )
     return data
+
 
 def extract_hrv_features(r_peaks):
     tdf_names = [
@@ -385,10 +450,18 @@ def extract_hrv_features(r_peaks):
     ]
 
     pcp_names = ["sd1", "sd2", "ratio_sd2_sd1"]
-    features = np.ndarray((len(tdf_names) + len(gf_names) + len(fdf_names) + len(cscv_names) + len(pcp_names),))
+    features = np.ndarray(
+        (
+            len(tdf_names)
+            + len(gf_names)
+            + len(fdf_names)
+            + len(cscv_names)
+            + len(pcp_names),
+        )
+    )
     features[:] = 0
     features = list(features)
-    
+
     try:
         tdf = hrvanalysis.get_time_domain_features(r_peaks)
         gf = hrvanalysis.get_geometrical_features(r_peaks)
@@ -418,6 +491,7 @@ def extract_hrv_features(r_peaks):
 
     return features
 
+
 def extract_hp_features(signal):
     try:
         _, measures = hp.process(signal, sample_rate=300)
@@ -437,6 +511,7 @@ def extract_hp_features(signal):
     features.append(np.log10(measures["sd1/sd2"] ** 2))
     return features
 
+
 def extract_template_features(signal):
     templates = ecg.ecg(signal=signal, sampling_rate=300, show=False)["templates"]
 
@@ -450,23 +525,36 @@ def extract_template_features(signal):
     mean_mean = np.mean(mean_template)
     mean_med = np.median(mean_template)
 
-    std_template = np.std(templates, axis = 0)
+    std_template = np.std(templates, axis=0)
     std_std = np.std(std_template)
     std_mean = np.mean(std_template)
     std_med = np.median(std_template)
 
-    return [med_std, med_mean, med_med, mean_std, mean_mean, mean_med, std_std, std_mean, std_med]
+    return [
+        med_std,
+        med_mean,
+        med_med,
+        mean_std,
+        mean_mean,
+        mean_med,
+        std_std,
+        std_mean,
+        std_med,
+    ]
+
 
 def s_to_noise_dB(signal):
     mean = np.mean(signal)
     std = np.std(signal)
     return [20 * np.log10(abs(np.where(std == 0, 0, mean / std)))]
 
+
 def s_over_thresh(signal, r_peaks, thresh):
     thres = np.max(signal) * thresh
     thresh_rate = sum(signal > thres) / len(signal)
     thresh_over_peak = thresh_rate / len(r_peaks)
     return [thresh_rate, thresh_over_peak]
+
 
 def create_features(ecg_data):
     features = []
@@ -480,42 +568,60 @@ def create_features(ecg_data):
             skew = sp.stats.skew(x)
             kurtosis = sp.stats.kurtosis(x)
             variation = sp.stats.variation(x)
-            iqr = sp.stats.iqr(x) # difference between the 0.75 and 0.25 quantile
-            slope = x[0] - x[-1] #not really, but w/e
-            new_features = [mean, std, median, min, max, skew, kurtosis, variation, iqr, slope] 
+            iqr = sp.stats.iqr(x)  # difference between the 0.75 and 0.25 quantile
+            slope = x[0] - x[-1]  # not really, but w/e
+            new_features = [
+                mean,
+                std,
+                median,
+                min,
+                max,
+                skew,
+                kurtosis,
+                variation,
+                iqr,
+                slope,
+            ]
             features += new_features
         else:
-            with open('filename.txt', 'a') as f:
-                original_stdout = sys.stdout # Save a reference to the original standard output
-                sys.stdout = f # Change the standard output to the file we created.
-                print(f'No data for ecgdata ')
+            with open("filename.txt", "a") as f:
+                original_stdout = (
+                    sys.stdout
+                )  # Save a reference to the original standard output
+                sys.stdout = f  # Change the standard output to the file we created.
+                print(f"No data for ecgdata ")
                 sys.stdout = original_stdout
 
             features += [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            
+
     return np.array(features)
 
+
 def get_features(df_raw_signals):
-    
+
     features = []
-    
+
     for i in tqdm(range(0, df_raw_signals.shape[0])):
-        signal = df_raw_signals.iloc[i].dropna().to_numpy(dtype='float32')
+        signal = df_raw_signals.iloc[i].dropna().to_numpy(dtype="float32")
         meth = "nk"
         try:
-            cleaned_signal = nk.ecg_clean(signal, sampling_rate=300, method='neurokit')
+            cleaned_signal = nk.ecg_clean(signal, sampling_rate=300, method="neurokit")
             ecg_data = extract_ecg_data(cleaned_signal, meth)
         except:
             try:
-                cleaned_signal = nk.ecg_clean(signal, sampling_rate=300, method='hamilton2002')
+                cleaned_signal = nk.ecg_clean(
+                    signal, sampling_rate=300, method="hamilton2002"
+                )
                 ecg_data = extract_ecg_data(cleaned_signal, meth)
             except:
                 try:
-                    cleaned_signal = nk.ecg_clean(signal, sampling_rate=300, method='elgendi2010')
+                    cleaned_signal = nk.ecg_clean(
+                        signal, sampling_rate=300, method="elgendi2010"
+                    )
                     ecg_data = extract_ecg_data(cleaned_signal, meth)
                 except:
-                    print('really bad data point', i)
-                    #exit(-1)
+                    print("really bad data point", i)
+                    # exit(-1)
         fft_data = extract_fft_feature(cleaned_signal)
         r_peaks = extract_r_peaks(cleaned_signal)
         hrv_features = extract_hrv_features(r_peaks)
@@ -523,39 +629,44 @@ def get_features(df_raw_signals):
         s_over_features = s_over_thresh(cleaned_signal, r_peaks, 0.7)
         template_features = extract_template_features(cleaned_signal)
         s_to_noise_feature = s_to_noise_dB(cleaned_signal)
-        
 
-        f = list(create_features(ecg_data)) + list(create_features(fft_data)) + hrv_features + hp_fetures + s_over_features + template_features + s_to_noise_feature
+        f = (
+            list(create_features(ecg_data))
+            + list(create_features(fft_data))
+            + hrv_features
+            + hp_fetures
+            + s_over_features
+            + template_features
+            + s_to_noise_feature
+        )
         features.append(f)
-        
-    
+
     df = pd.DataFrame(features)
     return df
+
 
 def sub_features(arg_tuple):
     df_raw, idx = arg_tuple
     df_processed = get_features(df_raw)
     return idx, df_processed
 
+
 def multi_features(df_raw_signals, n_cores=128):
     ids = df_raw_signals.index.to_list()
     split = np.array_split(ids, n_cores)
-    
+
     chunks = []
     for l, i in zip(split, range(len(split))):
         start = l[0]
         end = l[-1]
-        chunks.append((df_raw_signals.iloc[start:end+1], i))
-    
+        chunks.append((df_raw_signals.iloc[start : end + 1], i))
+
     my_pool = Pool(n_cores)
     result = my_pool.map(sub_features, chunks)
     result = sorted(result, key=lambda tup: tup[0])
-    
+
     df_list = [item[1] for item in result]
     df_final = pd.concat(df_list)
     df_final = df_final.reset_index(drop=True)
-    
+
     return df_final
-
-
-    

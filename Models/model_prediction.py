@@ -73,7 +73,7 @@ def main(filename: str = "final_result"):
 
     voting = train(voting)
     y_pred = voting.predict(X_test)
-    
+
     print_boundary(f"Generate the prediction file: {filename}.csv", fill_char="=")
     submit_pred(y_pred, f"{filename}.csv")
 

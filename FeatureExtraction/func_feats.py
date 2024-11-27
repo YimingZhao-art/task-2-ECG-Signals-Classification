@@ -63,18 +63,30 @@ def get_ecg_df(X: pd.DataFrame, save: bool = False) -> pd.DataFrame:
                 heart_rate (np.array): The heart rate.
         """
         row = X.loc[i].dropna().to_numpy(dtype="float32")
-        ts, filtered, rpeaks, templates_ts, templates, heart_rate_ts, heart_rate = (
-            ecg.ecg(signal=row, sampling_rate=300, show=False)
-        )
+        (
+            ts,
+            filtered,
+            rpeaks,
+            templates_ts,
+            templates,
+            heart_rate_ts,
+            heart_rate,
+        ) = ecg.ecg(signal=row, sampling_rate=300, show=False)
 
         return ts, filtered, rpeaks, templates_ts, templates, heart_rate_ts, heart_rate
 
     ecg_df = pd.DataFrame(columns=ecg_features)
     ecg_df.index.name = "id"
     for i in tqdm(range(X.shape[0]), desc="Extracting ECG features"):
-        ts, filtered, rpeaks, templates_ts, templates, heart_rate_ts, heart_rate = (
-            extract_ecg_features(X, i)
-        )
+        (
+            ts,
+            filtered,
+            rpeaks,
+            templates_ts,
+            templates,
+            heart_rate_ts,
+            heart_rate,
+        ) = extract_ecg_features(X, i)
         mean_templates = np.mean(templates, axis=0)
         ecg_df.loc[len(ecg_df)] = [
             ts,
@@ -134,7 +146,6 @@ def get_fft_df(ecg_df: pd.DataFrame, save: bool = False) -> pd.DataFrame:
 
 # Power spectral density (PSD) features are features that describe the power of the signal at different frequencies
 def get_psd_df(ecg_df: pd.DataFrame, save: bool = False) -> pd.DataFrame:
-
     def extract_psd(ecg_feature, fs=300):
         if ecg_feature.shape[0] == 0:
             return np.array([])

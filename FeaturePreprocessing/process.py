@@ -177,7 +177,7 @@ def processWithStrategy(
 def main():
     X_train, y_train, X_test = processWithStrategy(save=True, warmstart=False)
     return
-    
+
     # split while keep the imbalance ratio
     X_tr, X_val, y_tr, y_val = train_test_split(
         X_train,
@@ -186,8 +186,6 @@ def main():
         stratify=y_train,
         random_state=42,
     )
-
-    
 
     # it is multi-class classification
     # use multi_logloss as objective
