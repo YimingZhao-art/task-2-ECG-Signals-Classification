@@ -1,7 +1,7 @@
-LGBM|0.8861
-XGB|0.8861
-CatBoost|0.876
+LGBM|0.8801
+XGB|0.8891
+CatBoost|0.8701
 GradientBoosting|0.8701
-ExtraTrees|0.8799
+ExtraTrees|0.8701
 Bagging|0.8633
-RandomForest|0.873
+RandomForest|0.8701

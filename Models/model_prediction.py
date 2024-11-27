@@ -50,6 +50,9 @@ def main(filename: str = "final_result"):
 
     print_boundary("Using XGB to evaluate the model", fill_char="*")
     xgb = models["XGB"]
+    if torch.cuda.is_available():
+        xgb = xgb.set_params(tree_method="gpu_hist")
+        print("Using GPU for XGB")
     score = evaluate_model(X_train, y_train, xgb, cv=True)
     print("XGB score: ", score)
     print_boundary(fill_char="*")
