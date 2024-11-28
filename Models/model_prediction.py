@@ -48,13 +48,10 @@ def main(filename: str = "final_result"):
     print("Weights: ", weights)
     print_boundary(fill_char="-")
 
-    print_boundary("Using XGB to evaluate the model", fill_char="*")
-    xgb = models["XGB"]
-    if torch.cuda.is_available():
-        xgb = xgb.set_params(tree_method="gpu_hist")
-        print("Using GPU for XGB")
-    score = evaluate_model(X_train, y_train, xgb, cv=True)
-    print("XGB score: ", score)
+    print_boundary("Using Simple Model to test the data first", fill_char="*")
+    from sklearn.linear_model import LogisticRegression
+    test = evaluate_model(X_train, y_train, LogisticRegression(), False)
+    print("Logistic Regression: ", test)
     print_boundary(fill_char="*")
 
     # 确保 estimators 和 weights 的模型名称一致

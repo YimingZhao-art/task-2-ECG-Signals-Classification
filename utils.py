@@ -114,6 +114,20 @@ def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     """
     print_boundary("Loading Final Data", fill_char="=")
 
+    # check whether the final data is already generated
+    if (
+        os.path.exists(datadir + "/final/X_train_total.csv")
+        and os.path.exists(datadir + "/final/X_test_total.csv")
+        and os.path.exists(datadir + "/final/y_train_total.csv")
+    ):
+        X_train_total = pd.read_csv(datadir + "/final/X_train_total.csv", index_col=0)
+        X_test_total = pd.read_csv(datadir + "/final/X_test_total.csv", index_col=0)
+        y_train_total = pd.read_csv(datadir + "/final/y_train_total.csv", index_col=0)
+        print_boundary("Final Data Shape", fill_char="-")
+        print(X_train_total.shape, X_test_total.shape, y_train_total.shape)
+        print_boundary()
+        return X_train_total, X_test_total, y_train_total.values.ravel()
+
     X_train_p1 = pd.read_csv(datadir + "/final/p1_X_train.csv", index_col=0)
     X_test_p1 = pd.read_csv(datadir + "/final/p1_X_test.csv", index_col=0)
     y_train_p1 = pd.read_csv(datadir + "/final/p1_y_train.csv", index_col=0)
@@ -287,6 +301,8 @@ def evaluate_model(X_train, y_train, model, cv=True):
             y_train,
             cv=5,
             scoring=make_scorer(f1_score, average="micro"),
+            n_jobs=-1,
+            verbose=1,
         )
     else:
         X_tr, X_val, y_tr, y_val = train_test_split(
