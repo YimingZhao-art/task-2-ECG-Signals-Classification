@@ -105,9 +105,14 @@ def load_Xtrain_ytrain_Xtest() -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
 
 
 @function_runtime_tracker
-def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
+def load_final_data(
+    warm_start: bool = True,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     """
     Load final data.
+
+    Args:
+    warm_start: bool, whether to use the existing final data.
 
     Returns:
     Tuple of three DataFrames: X_train, X_test, and y_train.
@@ -119,7 +124,7 @@ def load_final_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
         os.path.exists(datadir + "/final/X_train_total.csv")
         and os.path.exists(datadir + "/final/X_test_total.csv")
         and os.path.exists(datadir + "/final/y_train_total.csv")
-    ):
+    ) and warm_start:
         X_train_total = pd.read_csv(datadir + "/final/X_train_total.csv", index_col=0)
         X_test_total = pd.read_csv(datadir + "/final/X_test_total.csv", index_col=0)
         y_train_total = pd.read_csv(datadir + "/final/y_train_total.csv", index_col=0)
