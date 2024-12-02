@@ -2,6 +2,13 @@
 
 This project focuses on classifying time-series data from ECG signals. The authors reference various resources, re-implementing their methods while also making significant improvements (see Reference). The two primary repositories referred to in this work achieve F1 scores of 0.847 and 0.825, respectively. However, through thorough analysis of the strengths and weaknesses of these approaches, the authors have developed a novel method that achieves an F1 score of **0.864** on the public leaderboard. This represents a notable improvement over the existing implementations, highlighting the impact of the authors' contributions.
 
+
+Notes: After the private leaderboard releasing our private score reaches 0.87255. However, we had a best submission with private score 0.87729 but public score only 0.85324. By reflecting on improving methods mentioned below, MajorityVoting is better than StackClassifier, but selecting no more than features will be better than 500 features or 2700 features.
+
+
+
+
+
 ## Table of Contents
 
 - [Device Requirements](#device-requirements)
@@ -97,6 +104,7 @@ The weight is calculated by score using the formula:
 
 $$
 w_i = \frac{e^{\frac{s_i - \min(s)}{\delta}}}{\sum_{j} e^{\frac{s_j - \min(s)}{\delta}}}
+
 $$
 
 ## Reference
