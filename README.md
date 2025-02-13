@@ -104,7 +104,6 @@ The weight is calculated by score using the formula:
 
 $$
 w_i = \frac{e^{\frac{s_i - \min(s)}{\delta}}}{\sum_{j} e^{\frac{s_j - \min(s)}{\delta}}}
-
 $$
 
 ## Reference
